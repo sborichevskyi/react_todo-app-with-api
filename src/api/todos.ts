@@ -21,6 +21,46 @@ export enum FilterEnum {
   COMPLETED = 'completed',
 }
 
+export const clearCompleted = (
+  allTodos: Todo[],
+  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
+  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
+  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
+) => {
+  return async () => {
+    const todosIdToDelete = allTodos
+      .filter(todo => todo.completed)
+      .map(todo => todo.id);
+
+    const deletedIds: number[] = [];
+
+    if (todosIdToDelete.length === 0) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await Promise.all(
+        todosIdToDelete.map(async id => {
+          try {
+            await client.delete(`/todos/${id}`);
+            deletedIds.push(id);
+          } catch (error) {
+            setErrorMessage('Unable to delete a todo');
+          }
+        }),
+      );
+
+      setAllTodos(allTodos.filter(todo => !deletedIds.includes(todo.id)));
+    } catch (error) {
+      setErrorMessage('Unable to delete one or more todos');
+    } finally {
+      setLoading(false);
+    }
+  };
+};
+
 export const filterTodos = (curFilter: FilterEnum, allTodos: Todo[]) => {
   switch (curFilter) {
     case FilterEnum.ALL:
@@ -35,313 +75,5 @@ export const filterTodos = (curFilter: FilterEnum, allTodos: Todo[]) => {
       return completedTodos;
     default:
       throw new Error(`Unsupported filter type: ${curFilter}`);
-  }
-};
-
-export const deleteTodo = (
-  id: number,
-  allTodos: Todo[],
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  setLoadingTodoId: React.Dispatch<React.SetStateAction<number>>,
-  selectedFilter: FilterEnum,
-) => {
-  setLoading(true);
-  setLoadingTodoId(id);
-  client
-    .delete(`/todos/${id}`)
-    .then(() => {
-      const updatedTodos = allTodos.filter(todo => todo.id !== id);
-
-      setAllTodos(updatedTodos);
-      filterTodos(selectedFilter, allTodos);
-    })
-    .catch(() => {
-      setError(true);
-      setErrorMessage('Unable to delete a todo');
-    })
-    .finally(() => setLoading(false));
-};
-
-export const addTodo = (
-  inputText: string,
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-  setInputText: React.Dispatch<React.SetStateAction<string>>,
-  allTodos: Todo[],
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setTempTodo: React.Dispatch<React.SetStateAction<Todo | null>>,
-  event: React.FormEvent<HTMLFormElement>,
-) => {
-  event.preventDefault();
-  setLoading(true);
-
-  if (inputText.trim() === '') {
-    setError(true);
-    setErrorMessage('Title should not be empty');
-    setLoading(false);
-
-    return;
-  }
-
-  const newId =
-    allTodos.length === 0 ? 1 : Math.max(...allTodos.map(todo => todo.id)) + 1;
-
-  const newTodo = {
-    id: newId,
-    userId: 2248,
-    completed: false,
-    title: inputText.trim(),
-  };
-
-  const tempTodo = {
-    ...newTodo,
-    id: 0,
-  };
-
-  setTempTodo(tempTodo);
-
-  client
-    .post('/todos', newTodo)
-    .then(() => {
-      setAllTodos(prevTodos => [...prevTodos, newTodo]);
-      setInputText('');
-      setTempTodo(null);
-    })
-    .catch(() => {
-      setError(true);
-      setErrorMessage('Unable to add a todo');
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-};
-
-export const clearCompleted = async (
-  allTodos: Todo[],
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-) => {
-  const todosIdToDelete = allTodos
-    .filter(todo => todo.completed)
-    .map(todo => todo.id);
-
-  const deletedIds: number[] = [];
-
-  if (todosIdToDelete.length === 0) {
-    return;
-  }
-
-  setLoading(true);
-
-  try {
-    await Promise.all(
-      todosIdToDelete.map(async id => {
-        try {
-          await client.delete(`/todos/${id}`);
-          deletedIds.push(id);
-        } catch (error) {
-          setError(true);
-          setErrorMessage('Unable to delete a todo');
-        }
-      }),
-    );
-
-    setAllTodos(allTodos.filter(todo => !deletedIds.includes(todo.id)));
-  } catch (error) {
-    setError(true);
-    setErrorMessage('Unable to delete one or more todos');
-  } finally {
-    setLoading(false);
-  }
-};
-
-export const filterClick = (
-  setSelectedFilter: React.Dispatch<React.SetStateAction<FilterEnum>>,
-  curFilter: FilterEnum,
-  selectedFilter: string,
-  allTodos: Todo[],
-) => {
-  if (selectedFilter === curFilter) {
-    return;
-  }
-
-  setSelectedFilter(curFilter);
-  filterTodos(curFilter, allTodos);
-};
-
-export const handleTodo = (
-  todoId: number,
-  todoCompleted: boolean,
-  setLoadingTodoId: React.Dispatch<React.SetStateAction<number>>,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  allTodos: Todo[],
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-) => {
-  setLoading(true);
-  setLoadingTodoId(todoId);
-
-  const body = {
-    completed: !todoCompleted,
-  };
-
-  client
-    .patch(`/todos/${todoId}`, body)
-    .then(() => {
-      const updatedTodos = allTodos.map(todo =>
-        todo.id === todoId ? { ...todo, completed: !todoCompleted } : todo,
-      );
-
-      setAllTodos(updatedTodos);
-    })
-    .catch(() => {
-      setError(true);
-      setErrorMessage('Unable to update a todo');
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-};
-
-export const completeAll = async (
-  allTodos: Todo[],
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-) => {
-  setLoading(true);
-
-  let idTodosToComplete = allTodos
-    .filter(todo => !todo.completed)
-    .map(todo => todo.id);
-
-  const updatedIds: number[] = [];
-
-  if (idTodosToComplete.length === 0) {
-    idTodosToComplete = allTodos.map(theTodo => theTodo.id);
-  }
-
-  try {
-    await Promise.all(
-      idTodosToComplete.map(async id => {
-        const body = {
-          completed: allTodos.find(curTodo => curTodo.id === id)?.completed,
-        };
-
-        try {
-          await client.patch(`/todos/${id}`, body);
-          updatedIds.push(id);
-        } catch (error) {
-          setError(true);
-          setErrorMessage('Unable to update a todo');
-        }
-      }),
-    );
-
-    const updatedTodos = allTodos.map(todo =>
-      updatedIds.includes(todo.id)
-        ? { ...todo, completed: !todo.completed }
-        : todo,
-    );
-
-    setAllTodos(updatedTodos);
-  } catch (error) {
-    setError(true);
-    setErrorMessage('Unable to update one ore more todos');
-  } finally {
-    setLoading(false);
-  }
-};
-
-export const editTodoTitle = (
-  setEditTodoId: React.Dispatch<React.SetStateAction<number | null>>,
-  todo: Todo,
-  setUpdInputText: React.Dispatch<React.SetStateAction<string>>,
-  setOldText: React.Dispatch<React.SetStateAction<string>>,
-) => {
-  setOldText(todo.title.trim());
-  setEditTodoId(todo.id);
-  setUpdInputText(todo.title.trim());
-};
-
-export const updateTodoTitle = async (
-  updInputText: string,
-  id: number,
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>,
-  allTodos: Todo[],
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>,
-  setError: React.Dispatch<React.SetStateAction<boolean>>,
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>,
-  ev: React.FormEvent<HTMLFormElement> | React.FocusEvent<HTMLInputElement>,
-  setEditTodoId: React.Dispatch<React.SetStateAction<number | null>>,
-  oldText: string,
-  setLoadingTodoId: React.Dispatch<React.SetStateAction<number>>,
-  selectedFilter: FilterEnum,
-) => {
-  ev.preventDefault();
-
-  if (!updInputText.trim()) {
-    deleteTodo(
-      id,
-      allTodos,
-      setAllTodos,
-      setLoading,
-      setError,
-      setErrorMessage,
-      setLoadingTodoId,
-      selectedFilter,
-    );
-
-    return;
-  }
-
-  if (updInputText.trim() === oldText) {
-    setEditTodoId(null);
-    setLoading(false);
-
-    return;
-  }
-
-  setLoading(true);
-  setLoadingTodoId(id);
-
-  const body = {
-    title: updInputText.trim(),
-  };
-
-  try {
-    await client.patch(`/todos/${id}`, body);
-    const updatedTodos = allTodos.map(todo =>
-      todo.id === id ? { ...todo, title: updInputText.trim() } : todo,
-    );
-
-    setAllTodos(updatedTodos);
-    setEditTodoId(null);
-  } catch (error) {
-    setError(true);
-    setErrorMessage(`Unable to update a todo`);
-    setEditTodoId(id);
-  } finally {
-    setLoading(false);
-  }
-};
-
-export const cancelEditing = (
-  ev: React.KeyboardEvent<HTMLInputElement>,
-  oldText: string,
-  setEditTodoId: React.Dispatch<React.SetStateAction<number | null>>,
-  setUpdInputText: React.Dispatch<React.SetStateAction<string>>,
-) => {
-  if (ev.key === 'Escape') {
-    setEditTodoId(null);
-    setUpdInputText(oldText);
   }
 };

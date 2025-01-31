@@ -1,42 +1,27 @@
 import React, { useEffect, useRef } from 'react';
-import { Todo } from '../../types/Todo';
-import { addTodo, completeAll } from '../../api/todos';
 import classNames from 'classnames';
+import { useAppContext } from '../../HooksContext';
+import { client } from '../../utils/fetchClient';
 
-interface HeaderProps {
-  visibleTodos: Todo[];
-  inputText: string;
-  error: boolean;
-  setInputText: React.Dispatch<React.SetStateAction<string>>;
-  setError: React.Dispatch<React.SetStateAction<boolean>>;
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>;
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  allTodos: Todo[];
-  loading: boolean;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setTempTodo: React.Dispatch<React.SetStateAction<Todo | null>>;
-}
+export const Header: React.FC = () => {
+  const {
+    setErrorMessage,
+    loading,
+    allTodos,
+    setLoading,
+    setAllTodos,
+    inputText,
+    setInputText,
+    setTempTodo,
+  } = useAppContext();
 
-export const Header: React.FC<HeaderProps> = ({
-  inputText,
-  error,
-  setInputText,
-  setError,
-  setErrorMessage,
-  setAllTodos,
-  allTodos,
-  loading,
-  setLoading,
-  setTempTodo,
-}) => {
   useEffect(() => {
     const timer = setTimeout(() => {
-      setError(false);
       setErrorMessage('');
     }, 3000);
 
     return () => clearTimeout(timer);
-  }, [error, setError, setErrorMessage]);
+  }, [setErrorMessage]);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -45,6 +30,98 @@ export const Header: React.FC<HeaderProps> = ({
       inputRef.current.focus();
     }
   }, [loading]);
+
+  const completeAll = () => {
+    return async () => {
+      setLoading(true);
+
+      let idTodosToComplete = allTodos
+        .filter(todo => !todo.completed)
+        .map(todo => todo.id);
+
+      const updatedIds: number[] = [];
+
+      if (idTodosToComplete.length === 0) {
+        idTodosToComplete = allTodos.map(theTodo => theTodo.id);
+      }
+
+      try {
+        await Promise.all(
+          idTodosToComplete.map(async id => {
+            const body = {
+              completed: allTodos.find(curTodo => curTodo.id === id)?.completed,
+            };
+
+            try {
+              await client.patch(`/todos/${id}`, body);
+              updatedIds.push(id);
+            } catch (error) {
+              setErrorMessage('Unable to update a todo');
+            }
+          }),
+        );
+
+        const updatedTodos = allTodos.map(todo =>
+          updatedIds.includes(todo.id)
+            ? { ...todo, completed: !todo.completed }
+            : todo,
+        );
+
+        setAllTodos(updatedTodos);
+      } catch (error) {
+        setErrorMessage('Unable to update one ore more todos');
+      } finally {
+        setLoading(false);
+      }
+    };
+  };
+
+  const addTodo = () => {
+    return (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      setLoading(true);
+
+      if (inputText.trim() === '') {
+        setErrorMessage('Title should not be empty');
+        setLoading(false);
+
+        return;
+      }
+
+      const newId =
+        allTodos.length === 0
+          ? 1
+          : Math.max(...allTodos.map(todo => todo.id)) + 1;
+
+      const newTodo = {
+        id: newId,
+        userId: 2248,
+        completed: false,
+        title: inputText.trim(),
+      };
+
+      const tempTodo = {
+        ...newTodo,
+        id: 0,
+      };
+
+      setTempTodo(tempTodo);
+
+      client
+        .post('/todos', newTodo)
+        .then(() => {
+          setAllTodos(prevTodos => [...prevTodos, newTodo]);
+          setInputText('');
+          setTempTodo(null);
+        })
+        .catch(() => {
+          setErrorMessage('Unable to add a todo');
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+  };
 
   return (
     <header className="todoapp__header">
@@ -55,34 +132,12 @@ export const Header: React.FC<HeaderProps> = ({
             active: allTodos.every(todo => todo.completed),
           })}
           data-cy="ToggleAllButton"
-          onClick={() =>
-            completeAll(
-              allTodos,
-              setLoading,
-              setError,
-              setErrorMessage,
-              setAllTodos,
-            )
-          }
+          onClick={completeAll()}
         />
       )}
 
       {/* Add a todo on form submit */}
-      <form
-        onSubmit={event => {
-          addTodo(
-            inputText,
-            setError,
-            setErrorMessage,
-            setAllTodos,
-            setInputText,
-            allTodos,
-            setLoading,
-            setTempTodo,
-            event,
-          );
-        }}
-      >
+      <form onSubmit={addTodo()}>
         <input
           data-cy="NewTodoField"
           type="text"

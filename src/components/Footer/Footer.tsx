@@ -1,30 +1,31 @@
 import React from 'react';
 import classNames from 'classnames';
-import { Todo } from '../../types/Todo';
-import { clearCompleted, filterClick, FilterEnum } from '../../api/todos';
+import { clearCompleted, FilterEnum, filterTodos } from '../../api/todos';
+import { useAppContext } from '../../HooksContext';
 
-interface FooterProps {
-  selectedFilter: string;
-  setSelectedFilter: React.Dispatch<React.SetStateAction<FilterEnum>>;
-  completedLentgh: number;
-  allTodos: Todo[];
-  setCompletedLentgh: React.Dispatch<React.SetStateAction<number>>;
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  setError: React.Dispatch<React.SetStateAction<boolean>>;
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-}
+export const Footer: React.FC = () => {
+  const {
+    allTodos,
+    setAllTodos,
+    selectedFilter,
+    setSelectedFilter,
+    setErrorMessage,
+    setLoading,
+  } = useAppContext();
 
-export const Footer: React.FC<FooterProps> = ({
-  selectedFilter,
-  setSelectedFilter,
-  completedLentgh,
-  allTodos,
-  setAllTodos,
-  setError,
-  setErrorMessage,
-  setLoading,
-}) => {
+  const filterClick = (curFilter: FilterEnum) => {
+    return () => {
+      if (selectedFilter === curFilter) {
+        return;
+      }
+
+      setSelectedFilter(curFilter);
+      filterTodos(curFilter, allTodos);
+    };
+  };
+
+  const completedLentgh = allTodos.filter(todo => !todo.completed).length;
+
   return (
     <footer className="todoapp__footer" data-cy="Footer">
       <span className="todo-count" data-cy="TodosCounter">
@@ -42,14 +43,7 @@ export const Footer: React.FC<FooterProps> = ({
               className={classNames('filter__link', {
                 selected: selectedFilter === curFilter,
               })}
-              onClick={() => {
-                filterClick(
-                  setSelectedFilter,
-                  curFilter,
-                  selectedFilter,
-                  allTodos,
-                );
-              }}
+              onClick={filterClick(curFilter)}
             >
               {curFilter.charAt(0).toUpperCase() + curFilter.slice(1)}
             </a>
@@ -63,15 +57,12 @@ export const Footer: React.FC<FooterProps> = ({
         className="todoapp__clear-completed"
         data-cy="ClearCompletedButton"
         disabled={!allTodos.some(todo => todo.completed)}
-        onClick={() => {
-          clearCompleted(
-            allTodos,
-            setAllTodos,
-            setError,
-            setErrorMessage,
-            setLoading,
-          );
-        }}
+        onClick={clearCompleted(
+          allTodos,
+          setAllTodos,
+          setErrorMessage,
+          setLoading,
+        )}
       >
         Clear completed
       </button>

@@ -1,68 +1,14 @@
 /* eslint-disable jsx-a11y/label-has-associated-control */
 import React from 'react';
-import { Todo } from '../../types/Todo';
 import { TodoItem } from '../TodoItem';
-import { FilterEnum } from '../../api/todos';
+import { useAppContext } from '../../HooksContext';
 
-interface TodoListProps {
-  visibleTodos: Todo[];
-  loading: boolean;
-  tempTodo: Todo | null;
-  allTodos: Todo[];
-  setAllTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  loadingTodoId: number;
-  setLoadingTodoId: React.Dispatch<React.SetStateAction<number>>;
-  setLoading: React.Dispatch<React.SetStateAction<boolean>>;
-  setError: React.Dispatch<React.SetStateAction<boolean>>;
-  setErrorMessage: React.Dispatch<React.SetStateAction<string>>;
-  selectedFilter: FilterEnum;
-  editTodoId: number | null;
-  setEditTodoId: React.Dispatch<React.SetStateAction<number | null>>;
-  setUpdInputText: React.Dispatch<React.SetStateAction<string>>;
-  updInputText: string;
-  oldText: string;
-  setOldText: React.Dispatch<React.SetStateAction<string>>;
-}
+export const TodoList: React.FC = () => {
+  const { loading, tempTodo } = useAppContext();
 
-export const TodoList: React.FC<TodoListProps> = ({
-  visibleTodos,
-  loading,
-  tempTodo,
-  allTodos,
-  setAllTodos,
-  loadingTodoId,
-  setLoadingTodoId,
-  setLoading,
-  setError,
-  setErrorMessage,
-  selectedFilter,
-  editTodoId,
-  setEditTodoId,
-  setUpdInputText,
-  updInputText,
-  oldText,
-  setOldText,
-}) => {
   return (
     <section className="todoapp__main" data-cy="TodoList">
-      <TodoItem
-        visibleTodos={visibleTodos}
-        allTodos={allTodos}
-        setAllTodos={setAllTodos}
-        loadingTodoId={loadingTodoId}
-        setLoadingTodoId={setLoadingTodoId}
-        loading={loading}
-        setLoading={setLoading}
-        setError={setError}
-        setErrorMessage={setErrorMessage}
-        selectedFilter={selectedFilter}
-        editTodoId={editTodoId}
-        setEditTodoId={setEditTodoId}
-        setUpdInputText={setUpdInputText}
-        updInputText={updInputText}
-        oldText={oldText}
-        setOldText={setOldText}
-      />
+      <TodoItem />
 
       {loading && tempTodo && (
         <div data-cy="Todo" className="todo">
